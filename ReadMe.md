@@ -1,6 +1,14 @@
 # Mindex Coding Challenge
 
 ## *My Changes/Notes
+Added a new Compensation model to the data model, along with the related controller, service, and repository.
+Added the GetReportingStructure endpoint to the EmployeeController.
+Implemented Swagger for easier API exploration and testing.
+Integrated Moq for unit testing dependencies.
+Added several unit tests covering controllers, services, and repositories.
+Added logging throughout the application to provide more visibility into operations.
+Improved error handling to cover more edge cases and ensure clearer responses.
+Introduced DTOs to simplify and structure API calls.
 
 ## What's Provided
 A simple [.Net 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) web application has been created and bootstrapped 
