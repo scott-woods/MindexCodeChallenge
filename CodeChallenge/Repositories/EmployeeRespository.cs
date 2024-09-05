@@ -6,6 +6,7 @@ using CodeChallenge.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using CodeChallenge.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CodeChallenge.Repositories
 {
@@ -22,14 +23,17 @@ namespace CodeChallenge.Repositories
 
         public Employee Add(Employee employee)
         {
-            employee.EmployeeId = Guid.NewGuid().ToString();
+            if (String.IsNullOrWhiteSpace(employee.EmployeeId))
+                employee.EmployeeId = Guid.NewGuid().ToString();
             _employeeContext.Employees.Add(employee);
             return employee;
         }
 
         public Employee GetById(string id)
         {
-            return _employeeContext.Employees.SingleOrDefault(e => e.EmployeeId == id);
+            return _employeeContext.Employees
+                .Include(e => e.DirectReports) //include direct reports in result
+                .FirstOrDefault(e => e.EmployeeId == id);
         }
 
         public Task SaveAsync()

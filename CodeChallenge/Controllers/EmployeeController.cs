@@ -1,62 +1,207 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using CodeChallenge.Models;
+using CodeChallenge.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using CodeChallenge.Services;
-using CodeChallenge.Models;
+using System;
 
 namespace CodeChallenge.Controllers
 {
+    /// <summary>
+    /// Controller for managing employees
+    /// </summary>
     [ApiController]
-    [Route("api/employee")]
+    [Route("api/[controller]")]
     public class EmployeeController : ControllerBase
     {
         private readonly ILogger _logger;
         private readonly IEmployeeService _employeeService;
 
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="employeeService"></param>
         public EmployeeController(ILogger<EmployeeController> logger, IEmployeeService employeeService)
         {
             _logger = logger;
             _employeeService = employeeService;
         }
 
-        [HttpPost]
-        public IActionResult CreateEmployee([FromBody] Employee employee)
-        {
-            _logger.LogDebug($"Received employee create request for '{employee.FirstName} {employee.LastName}'");
+        #region GET
 
-            _employeeService.Create(employee);
-
-            return CreatedAtRoute("getEmployeeById", new { id = employee.EmployeeId }, employee);
-        }
-
+        /// <summary>
+        /// Get an employee by id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [ProducesResponseType(typeof(Employee), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         [HttpGet("{id}", Name = "getEmployeeById")]
         public IActionResult GetEmployeeById(String id)
         {
-            _logger.LogDebug($"Received employee get request for '{id}'");
+            _logger.LogInformation($"Received employee get request for '{id}'");
 
-            var employee = _employeeService.GetById(id);
+            try
+            {
+                //validate id
+                if (String.IsNullOrEmpty(id))
+                {
+                    _logger.LogWarning("Id is required");
+                    return BadRequest("Id is required");
+                }
 
-            if (employee == null)
-                return NotFound();
+                //retrieve employee by id
+                var employee = _employeeService.GetById(id);
 
-            return Ok(employee);
+                if (employee == null)
+                {
+                    _logger.LogWarning($"Employee with Id {id} not found.");
+                    return NotFound($"Employee with Id {id} not found.");
+                }
+
+                _logger.LogInformation(id, $"Employee with Id {id} successfully retrieved.");
+
+                return Ok(employee);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while trying to retrieve Employee.");
+                return StatusCode(500, ex.Message);
+            }
         }
 
-        [HttpPut("{id}")]
-        public IActionResult ReplaceEmployee(String id, [FromBody]Employee newEmployee)
+        /// <summary>
+        /// Get the reporting structure for an employee by id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [ProducesResponseType(typeof(ReportingStructure), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        [HttpGet("reportingStructure/{id}", Name = "getReportingStructureById")]
+        public IActionResult GetReportingStructureById(String id)
         {
-            _logger.LogDebug($"Recieved employee update request for '{id}'");
+            _logger.LogInformation($"Received employee reporting structure get request for '{id}'");
 
-            var existingEmployee = _employeeService.GetById(id);
-            if (existingEmployee == null)
-                return NotFound();
+            try
+            {
+                //validate id
+                if (String.IsNullOrEmpty(id))
+                {
+                    _logger.LogWarning("Id is required.");
+                    return BadRequest("Id is required");
+                }
 
-            _employeeService.Replace(existingEmployee, newEmployee);
+                //retrieve reporting structure
+                var reportingStructure = _employeeService.GetReportingStructure(id);
 
-            return Ok(newEmployee);
+                //if null, employee was not found
+                if (reportingStructure == null)
+                {
+                    _logger.LogWarning($"Employee with Id {id} not found.");
+                    return NotFound($"Employee with Id {id} not found.");
+                }
+
+                _logger.LogInformation($"Reporting Structure for Employee with Id {id} successfully retrieved.");
+
+                return Ok(reportingStructure);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while trying to retrieve Reporting Structure.");
+                return StatusCode(500, ex.Message);
+            }
         }
+
+        #endregion
+
+        #region POST
+
+        /// <summary>
+        /// Create an employee
+        /// </summary>
+        /// <param name="employeeDto"></param>
+        /// <returns></returns>
+        [ProducesResponseType(typeof(Employee), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        [HttpPost]
+        public IActionResult CreateEmployee([FromBody] EmployeeDto employeeDto)
+        {
+            _logger.LogInformation($"Received employee create request for '{employeeDto.FirstName} {employeeDto.LastName}'");
+
+            try
+            {
+                //add employee to db
+                var createdEmployee = _employeeService.Create(employeeDto);
+
+                _logger.LogInformation("Employee successfully created and saved.");
+
+                return CreatedAtRoute("getEmployeeById", new { id = createdEmployee.EmployeeId }, createdEmployee);
+            }
+            catch (ArgumentException ex) //handle direct report not found
+            {
+                _logger.LogError(ex, "Exception occurred while creating Employee.");
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while creating Employee.");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        #endregion
+
+        #region PUT
+
+        /// <summary>
+        /// Replace an employee by id with a new employee
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="newEmployeeDto"></param>
+        /// <returns></returns>
+        [ProducesResponseType(typeof(Employee), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        [HttpPut("{id}")]
+        public IActionResult ReplaceEmployee(String id, [FromBody] EmployeeDto newEmployeeDto)
+        {
+            _logger.LogInformation($"Recieved employee update request for '{id}'");
+
+            try
+            {
+                //validate id
+                if (String.IsNullOrEmpty(id))
+                {
+                    _logger.LogWarning("Id is required");
+                    return BadRequest("Id is required");
+                }
+
+                //replace employee
+                var newEmployee = _employeeService.Replace(id, newEmployeeDto);
+
+                _logger.LogInformation($"Employee with Id {id} successfully replaced.");
+
+                return Ok(newEmployee);
+            }
+            catch (ArgumentException ex) //handle not found errors
+            {
+                _logger.LogError(ex, "Exception occurred while updating Employee.");
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while updating Employee.");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        #endregion
     }
 }

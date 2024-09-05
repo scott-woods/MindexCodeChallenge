@@ -29,6 +29,15 @@ namespace CodeChallenge.Config
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+
+                //enable swagger for development
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee API V1");
+                    c.RoutePrefix = string.Empty;
+                });
+
                 SeedEmployeeDB();
             }
 
@@ -44,8 +53,21 @@ namespace CodeChallenge.Config
 
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IEmployeeRepository, EmployeeRespository>();
+            services.AddScoped<ICompensationService, CompensationService>();
+            services.AddScoped<ICompensationRepository, CompensationRepository>();
 
             services.AddControllers();
+
+            //Add Swagger
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+                {
+                    Version = "v1",
+                    Title = "Employee API",
+                    Description = "A simple example ASP.NET Core Web API",
+                });
+            });
         }
 
         private void SeedEmployeeDB()
